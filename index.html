@@ -59,6 +59,7 @@ input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-r
 </head>
 <body>
 <body>
+    <body>
     <div id="nickname-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center;">
         <h2 style="color:#ff4757; margin-bottom:20px;">MAFIA: Rule Breaker</h2>
         <input type="text" id="nick-input" placeholder="닉네임을 입력하세요" style="width:250px; padding:12px; border-radius:25px; border:none; margin-bottom:15px; text-align:center;">
@@ -68,7 +69,7 @@ input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-r
     <div id="header" style="height:50px; background:#000; display:flex; justify-content:space-between; align-items:center; padding:0 15px; border-bottom:1px solid #333;">
         <div onclick="toggleSidebar()" style="cursor:pointer; font-size:24px; color:#fff;">☰</div>
         <span id="phase-display" style="font-weight:bold; color:#ff4757;">🏠 LOBBY</span>
-        <span id="room-info" style="font-size:12px; color:#888;">ROOM: 001</span>
+        <span id="room-info" style="font-size:12px; color:#888;">ROOM: 001 <span id="player-count" style="margin-left:5px;">(0)</span></span>
     </div>
 
     <div style="display:flex; flex:1; position:relative; overflow:hidden; height:calc(100vh - 50px);">
@@ -92,23 +93,6 @@ input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-r
         </div>
     </div>
 
-<div id="player-list"></div>
-
-<div id="log-view">
-    <div style="color:#888;">[시스템] 비밀번호 인증 완료. 서버 연결 중...</div>
-</div>
-
-<div id="bottom-ui">
-    <div id="my-status">
-        <b id="role-name" style="color:var(--acc);">연결 중</b>
-        <span id="role-desc" style="color:#aaa;">...</span>
-    </div>
-    <div id="input-bar">
-        <input type="text" id="chat-input" placeholder="메시지 입력 또는 !게임시작">
-        <button id="send-btn">전송</button>
-    </div>
-</div>
-
 <script>
 // [보안] 접속 비밀번호 설정 (원하는 비번으로 바꾸세요)
 const ROOM_PASSWORD = "1234"; 
@@ -126,6 +110,7 @@ while (!accessGranted) {
 
 // --- [1] 기본 변수 설정 ---
 const roomID = "ROOM_001";
+let myID = "";
 let myRole = "대기자";
 let gameState = { phase: "LOBBY", players: {}, targetList: {} };
 
@@ -381,6 +366,7 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 </script>
 </body>
 </html>
+
 
 
 
