@@ -125,7 +125,6 @@ while (!accessGranted) {
 
 // --- [1] 기본 변수 설정 ---
 const roomID = "ROOM_001";
-const myID = "Player_" + Math.floor(Math.random() * 1000);
 let myRole = "대기자";
 let gameState = { phase: "LOBBY", players: {}, targetList: {} };
 
@@ -179,9 +178,6 @@ sBtn.onclick = () => {
     cInput.value = "";
 };
 cInput.onkeypress = (e) => { if(e.key === 'Enter') sBtn.onclick(); };
-
-const sBtn = document.getElementById('send-btn');
-const cInput = document.getElementById('chat-input');
 
 // --- [3] 20종 전체 직업 데이터 정의 ---
 const ROLES = {
@@ -384,6 +380,7 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 </script>
 </body>
 </html>
+
 
 
 
