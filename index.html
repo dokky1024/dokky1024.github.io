@@ -6,9 +6,7 @@
     <title>MAFIA: The Rule Breaker</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
-    
     <style>
-        /* 게임 배경 및 색상 설정 */
         :root { 
             --bg: #0d0d0f; --panel: #1a1a1f; --acc: #ff4757; 
             --text: #f1f2f6; --mafia: #8e44ad; --citizen: #2ecc71; 
@@ -18,25 +16,15 @@
             font-family: 'Apple SD Gothic Neo', sans-serif; 
             margin: 0; display: flex; height: 100vh; overflow: hidden; 
         }
-        
-        /* 왼쪽: 플레이어 목록 창 */
         #side-panel { width: 300px; background: var(--panel); border-right: 2px solid #333; display: flex; flex-direction: column; }
-        
-        /* 오른쪽: 채팅 및 로그 창 */
         #main-panel { flex: 1; display: flex; flex-direction: column; }
-        
-        .player-card { 
-            padding: 15px; border-bottom: 1px solid #333; cursor: pointer; 
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        .player-card { padding: 15px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .player-card:hover { background: #25252b; }
         .player-card.dead { opacity: 0.3; background: #000; pointer-events: none; }
         .player-card.selected { border: 2px solid var(--acc); background: #2c2c34; }
-        
-        #log-view { flex: 1; overflow-y: auto; padding: 20px; background: rgba(0,0,0,0.3); font-size: 14px; line-height: 1.6; }
-        
+        #log-view { flex: 1; overflow-y: auto; padding: 20px; background: rgba(0,0,0,0.3); font-size: 14px; line-height: 1.8; }
         #input-bar { height: 60px; background: #000; display: flex; padding: 10px; border-top: 1px solid #333; }
         input { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 5px; outline: none; }
-        
         #my-status { padding: 20px; background: #111; border-top: 2px solid var(--acc); }
         .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .status-alive { background: var(--citizen); color: #000; }
@@ -46,42 +34,35 @@
 <body>
 
 <div id="side-panel">
-    <div style="padding: 20px; font-weight: bold; border-bottom: 2px solid #333; background: #000;">참여자 목록</div>
-    <div id="player-list" style="flex: 1; overflow-y: auto;">
-        </div>
+    <div style="padding: 20px; font-weight: bold; border-bottom: 2px solid #333; background: #000; display: flex; justify-content: space-between;">
+        참여자 목록 <span id="player-count" style="color: var(--acc);">0</span>
+    </div>
+    <div id="player-list" style="flex: 1; overflow-y: auto;"></div>
     <div id="my-status">
-        <div id="role-name" style="font-size: 1.2em; color: var(--acc); font-weight: bold;">대기실</div>
-        <div id="role-desc" style="font-size: 0.9em; color: #aaa; margin-top: 5px;">잠시만 기다려주세요...</div>
+        <div id="role-name" style="font-size: 1.2em; color: var(--acc); font-weight: bold;">연결 대기 중...</div>
+        <div id="role-desc" style="font-size: 0.9em; color: #aaa; margin-top: 5px;">잠시만 기다려주세요.</div>
     </div>
 </div>
 
 <div id="main-panel">
     <div id="header" style="padding: 15px; background: #000; display: flex; justify-content: space-between; border-bottom: 1px solid #333;">
-        <span id="phase-display">🏠 LOBBY</span>
-        <span id="room-info">ROOM: 001</span>
+        <span id="phase-display" style="font-weight: bold;">🏠 LOBBY</span>
+        <span id="room-info" style="color: #666;">ROOM: 001</span>
     </div>
-    <div id="log-view">
-        <div style="color: #666;">[시스템] 게임에 접속했습니다. !게임시작 명령어로 시작하세요.</div>
-    </div>
+    <div id="log-view"></div>
     <div id="input-bar">
-        <input type="text" id="chat-input" placeholder="메시지를 입력하거나 대상을 선택하세요...">
+        <input type="text" id="chat-input" placeholder="메시지를 입력하거나 !게임시작을 치세요...">
     </div>
 </div>
 
 <script>
+// --- [1] 기본 변수 설정 ---
+const roomID = "ROOM_001";
+const myID = "Player_" + Math.floor(Math.random() * 1000);
+let myRole = "대기자";
+let gameState = { phase: "LOBBY", players: {}, targetList: {} };
 
-// 접속하자마자 실행되는 입장 코드
-db.ref(`rooms/${roomID}/players/${myID}`).set({
-    uid: myID,
-    isAlive: true,
-    role: "대기자",
-    team: "none"
-});
-
-// 창을 닫으면 DB에서 삭제 (선택 사항)
-db.ref(`rooms/${roomID}/players/${myID}`).onDisconnect().remove();
-
-// --- [1] Firebase 설정 (본인의 정보를 입력하세요) ---
+// --- [2] Firebase 설정 ---
 const firebaseConfig = {
     apiKey: "AIzaSyA6Plgr7YiOvluYlyWH3L3bhpQPDfvX0d0",
     authDomain: "mafiagamejjjdaon-8d20d.firebaseapp.com",
@@ -92,327 +73,207 @@ const firebaseConfig = {
     appId: "1:740156732852:web:738ccad1d04e9f83a52ee1"
 };
 
-// Firebase 초기화
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Firebase 연결 도구 생성
-const db = firebase.database();
-
-// [중요] 접속하자마자 내 정보를 DB에 등록하는 코드
-// 이 코드가 실행되어야 403 에러가 사라지고 데이터가 쌓입니다.
-db.ref(`rooms/${roomID}/players/${myID}`).set({
-    uid: myID,
-    isAlive: true,
-    role: "대기자",
-    team: "none"
-}).then(() => {
-    console.log("DB 접속 성공!");
-}).catch((error) => {
-    console.error("DB 접속 실패(403 등): ", error);
-
-// --- [2] 게임 기본 변수 ---
-let roomID = "ROOM_001"; // 나중에 방 생성 기능으로 확장 가능
-let myID = "Player_" + Math.floor(Math.random() * 1000);
-let myRole = "";
-let gameState = {};
-
-// --- [3] 20종 직업 데이터 정의 (팀, 설명, 우선순위) ---
+// --- [3] 20종 전체 직업 데이터 정의 ---
 const ROLES = {
-    // 시민팀 (Citizen Team)
-    "시민": { team: "citizen", priority: 10, desc: "특수한 능력은 없지만 투표로 마피아를 잡으세요." },
-    "의사": { team: "citizen", priority: 2, desc: "밤마다 한 명을 선택해 마피아의 공격으로부터 치료합니다." },
-    "경찰": { team: "citizen", priority: 5, desc: "밤마다 한 명을 조사해 마피아인지 확인합니다." },
-    "군인": { team: "citizen", priority: 3, desc: "마피아의 공격을 1회 견뎌내며, 스파이의 조사를 알아챕니다." },
-    "정치인": { team: "citizen", priority: 9, desc: "투표 시 2표로 계산되며, 투표로 처형되지 않습니다." },
-    "영매": { team: "citizen", priority: 6, desc: "죽은 사람들의 채팅을 볼 수 있고, 성불시킬 수 있습니다." },
-    "연인": { team: "citizen", priority: 8, desc: "두 명이 배정됩니다. 밤에 서로 채팅이 가능하며 한 쪽이 죽으면 같이 죽습니다." },
-    "자경단": { team: "citizen", priority: 4, desc: "밤에 한 명을 사살할 수 있습니다. 시민 사살 시 본인도 사망합니다." },
-    "기자": { team: "citizen", priority: 7, desc: "밤에 한 명을 취재해 다음 날 아침 모든 플레이어에게 정체를 공개합니다." },
-    "테러리스트": { team: "citizen", priority: 9, desc: "투표로 처형될 때 한 명을 지목해 같이 폭사시킵니다." },
-    "사설탐정": { team: "citizen", priority: 5, desc: "밤마다 한 명을 조사해 누구를 선택했는지 알아냅니다." },
-    "성직자": { team: "citizen", priority: 1, desc: "죽은 플레이어 한 명을 부활시킬 수 있습니다. (1회)" },
-    "기술자": { team: "citizen", priority: 1, desc: "밤에 한 명을 선택해 그 사람의 능력을 그날 밤에만 무력화합니다." },
-
-    // 마피아팀 (Mafia Team)
-    "마피아": { team: "mafia", priority: 4, desc: "밤마다 시민 한 명을 지목하여 살해합니다." },
-    "스파이": { team: "mafia", priority: 5, desc: "밤마다 한 명의 직업을 알아내며, 마피아와 접선합니다." },
-    "짐승인간": { team: "mafia", priority: 4, desc: "마피아가 쏜 대상을 같이 공격하며, 마피아 조사에 걸리지 않습니다." },
-    "마녀": { team: "mafia", priority: 4, desc: "밤마다 저주를 걸어 대상을 죽입니다. 의사의 치료를 무시합니다." },
-    "암살자": { team: "mafia", priority: 4, desc: "직업을 정확히 맞추면 대상을 즉시 살해합니다." },
-
-    // 중립팀 (Neutral Team)
-    "도둑": { team: "neutral", priority: 2, desc: "밤마다 한 명의 직업을 훔쳐 본인의 것으로 만듭니다." },
-    "교주": { team: "neutral", priority: 8, desc: "밤마다 한 명을 포교합니다. 모든 생존자가 포교되면 승리합니다." }
+    "시민": { team: "citizen", priority: 10, desc: "추리로 마피아를 잡으세요." },
+    "의사": { team: "citizen", priority: 2, desc: "밤마다 한 명을 마피아의 공격으로부터 치료합니다." },
+    "경찰": { team: "citizen", priority: 5, desc: "밤마다 한 명이 마피아인지 조사합니다." },
+    "군인": { team: "citizen", priority: 3, desc: "공격을 1회 견디며 스파이의 조사를 알아챕니다." },
+    "정치인": { team: "citizen", priority: 9, desc: "투표 시 2표로 계산되며 처형되지 않습니다." },
+    "영매": { team: "citizen", priority: 6, desc: "죽은 자들의 대화를 듣습니다." },
+    "연인": { team: "citizen", priority: 8, desc: "서로를 알 수 있으며 한 명 사망 시 같이 죽습니다." },
+    "자경단": { team: "citizen", priority: 4, desc: "밤에 한 명을 사살합니다. 시민 사살 시 자살합니다." },
+    "기자": { team: "citizen", priority: 7, desc: "조사한 사람의 직업을 다음날 공표합니다." },
+    "테러리스트": { team: "citizen", priority: 9, desc: "처형 시 한 명을 같이 데려갑니다." },
+    "사설탐정": { team: "citizen", priority: 5, desc: "누구를 클릭했는지 동선을 확인합니다." },
+    "성직자": { team: "citizen", priority: 1, desc: "사망자 한 명을 부활시킵니다. (1회)" },
+    "기술자": { team: "citizen", priority: 1, desc: "선택한 사람의 능력을 그날 밤 무력화합니다." },
+    "마피아": { team: "mafia", priority: 4, desc: "밤마다 시민 한 명을 살해합니다." },
+    "스파이": { team: "mafia", priority: 5, desc: "한 명의 정체를 알아내 마피아와 접선합니다." },
+    "짐승인간": { team: "mafia", priority: 4, desc: "마피아 조사에 걸리지 않으며 함께 공격합니다." },
+    "마녀": { team: "mafia", priority: 4, desc: "저주로 의사의 치료를 무시하고 죽입니다." },
+    "암살자": { team: "mafia", priority: 4, desc: "직업을 맞추면 즉시 살해합니다." },
+    "도둑": { team: "neutral", priority: 2, desc: "직업을 훔칩니다." },
+    "교주": { team: "neutral", priority: 8, desc: "사람들을 포교하여 승리를 노립니다." }
 };
 
-// --- [4] 채팅 수신 및 명령어 처리 ---
-db.ref(`rooms/${roomID}/chats`).on('child_added', (snapshot) => {
-    const chat = snapshot.val();
-    addLog(`${chat.sender}: ${chat.text}`);
+// --- [4] 초기 접속 및 채팅 설정 ---
+db.ref(`rooms/${roomID}/players/${myID}`).set({
+    uid: myID, isAlive: true, role: "대기자", team: "none"
+});
+db.ref(`rooms/${roomID}/players/${myID}`).onDisconnect().remove();
 
-    // "!게임시작" 명령어를 감지하면 게임 실행
-    if (chat.text === "!게임시작") {
-        checkAndStartGame();
+const chatInput = document.getElementById('chat-input');
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && chatInput.value.trim()) {
+        const text = chatInput.value;
+        db.ref(`rooms/${roomID}/chats`).push({ sender: myID, text: text });
+        chatInput.value = "";
     }
 });
 
-function addLog(msg) {
+db.ref(`rooms/${roomID}/chats`).on('child_added', (snapshot) => {
+    const chat = snapshot.val();
+    addLog(`${chat.sender}: ${chat.text}`);
+    if (chat.text === "!게임시작") checkAndStartGame();
+});
+
+function addLog(msg, color = "#fff") {
     const logView = document.getElementById('log-view');
     const div = document.createElement('div');
     div.innerText = msg;
+    div.style.color = color;
     logView.appendChild(div);
     logView.scrollTop = logView.scrollHeight;
 }
 
-// --- [5] 직업 배정 및 게임 초기화 로직 ---
+// --- [5] 게임 시스템 로직 (시작, 직업 배정) ---
 function checkAndStartGame() {
-    // 현재 접속된 플레이어 목록 가져오기
     db.ref(`rooms/${roomID}/players`).once('value', (snapshot) => {
         const players = snapshot.val() || {};
         const uids = Object.keys(players);
+        if (uids.length < 3) { alert("최소 3명 이상의 플레이어가 필요합니다!"); return; }
 
-        if (uids.length < 3) {
-            alert("최소 3명 이상의 플레이어가 필요합니다!");
-            return;
-        }
-
-        // 직업 배정 순서 (인원수에 따라 유동적으로 조절 가능)
-        // 여기에 2부에서 만든 20종 직업 중 핵심 직업들을 먼저 배치합니다.
-        let rolePool = ["마피아", "의사", "경찰", "군인", "스파이", "자경단", "기술자"];
-        
-        // 인원수가 많으면 남은 자리는 '시민'으로 채움
-        while (rolePool.length < uids.length) {
-            rolePool.push("시민");
-        }
-
-        // 직업 셔플 (랜덤 섞기)
+        let rolePool = ["마피아", "의사", "경찰", "기술자", "군인", "스파이"];
+        while (rolePool.length < uids.length) rolePool.push("시민");
         rolePool = rolePool.sort(() => Math.random() - 0.5);
 
-        // 플레이어 데이터 업데이트
         uids.forEach((uid, index) => {
-            players[uid].role = rolePool[index];
-            players[uid].team = ROLES[rolePool[index]].team;
+            const rName = rolePool[index];
+            players[uid].role = rName;
+            players[uid].team = ROLES[rName].team;
             players[uid].isAlive = true;
-            players[uid].life = (rolePool[index] === "군인") ? 1 : 0; // 군인 전용 목숨
+            players[uid].life = (rName === "군인") ? 1 : 0;
         });
 
-        // Firebase에 게임 상태 전송 (첫 번째 밤 시작)
         db.ref(`rooms/${roomID}`).update({
-            phase: "NIGHT",
-            day: 1,
-            players: players,
-            targetList: {} // 밤 사이 선택한 타겟 초기화
+            phase: "NIGHT", day: 1, players: players, targetList: {}, winner: null
         });
-
-        alert("게임이 시작되었습니다! 당신의 직업을 확인하세요.");
+        addLog("[시스템] 게임이 시작되었습니다! 밤이 찾아왔습니다.", "var(--acc)");
     });
 }
 
-// --- [6] 내 정보 실시간 업데이트 ---
-// (내가 어떤 직업인지 화면 왼쪽 하단에 표시해주는 기능)
-db.ref(`rooms/${roomID}/players/${myID}`).on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data && data.role) {
-        myRole = data.role;
-        document.getElementById('role-name').innerText = `내 직업: ${myRole}`;
-        document.getElementById('role-desc').innerText = ROLES[myRole].desc;
-        
-        // 마피아팀이면 이름 색상을 보라색으로 표시
-        if (data.team === "mafia") {
-            document.getElementById('role-name').style.color = "var(--mafia)";
-        } else {
-            document.getElementById('role-name').style.color = "var(--citizen)";
-        }
-    }
-});
-
-// --- [7] 밤의 활동: 대상 선택 (클릭 이벤트) ---
+// --- [6] 밤의 능력 사용 (클릭 이벤트) ---
 function selectTarget(targetId) {
-    // 밤이고, 내가 살아있을 때만 능력 사용 가능
     if (gameState.phase !== "NIGHT") return;
-    
-    // 내 직업이 능력이 없는 '시민'이나 '정치인' 등이라면 클릭 방지
-    const passiveRoles = ["시민", "정치인", "영매"];
-    if (passiveRoles.includes(myRole)) {
-        addLog("당신의 직업은 밤에 선택할 수 있는 능력이 없습니다.", "#aaa");
+    if (myRole === "시민" || myRole === "정치인") {
+        addLog("당신은 능력이 없습니다.", "#888");
         return;
     }
-
-    // 선택한 타겟 정보를 Firebase에 임시 저장
-    // (누가(myID), 어떤 직업으로(myRole), 누구를(targetId) 선택했는지)
-    db.ref(`rooms/${roomID}/targetList/${myID}`).set({
-        from: myID,
-        to: targetId,
-        role: myRole
-    });
-
+    db.ref(`rooms/${roomID}/targetList/${myID}`).set({ from: myID, to: targetId, role: myRole });
     addLog(`${targetId}님을 타겟으로 선택했습니다.`, "var(--acc)");
-    highlightSelected(targetId);
-}
-
-// 선택된 플레이어 카드 강조 표시
-function highlightSelected(targetId) {
+    
+    // 강조 표시
     const cards = document.querySelectorAll('.player-card');
-    cards.forEach(card => {
-        card.classList.remove('selected');
-        if (card.getAttribute('data-uid') === targetId) {
-            card.classList.add('selected');
-        }
+    cards.forEach(c => {
+        c.classList.remove('selected');
+        if (c.getAttribute('data-uid') === targetId) c.classList.add('selected');
     });
 }
 
-// --- [8] 실시간 화면 갱신 (UI Update) ---
-// 데이터가 변할 때마다 목록을 다시 그립니다.
+// --- [7] 실시간 데이터 감시 및 UI 업데이트 ---
 db.ref(`rooms/${roomID}`).on('value', (snapshot) => {
     gameState = snapshot.val() || {};
     const players = gameState.players || {};
-    
     const listContainer = document.getElementById('player-list');
-    listContainer.innerHTML = ""; // 기존 목록 초기화
+    listContainer.innerHTML = "";
+    
+    document.getElementById('player-count').innerText = Object.keys(players).length;
 
     Object.keys(players).forEach(uid => {
         const p = players[uid];
         const div = document.createElement('div');
         div.className = `player-card ${p.isAlive ? '' : 'dead'}`;
-        div.setAttribute('data-uid', uid); // 타겟팅을 위한 ID 저장
+        div.setAttribute('data-uid', uid);
+        div.innerHTML = `<span>${uid}${uid === myID ? ' (나)' : ''}</span><span class="badge ${p.isAlive ? 'status-alive' : 'status-dead'}">${p.isAlive ? '생존' : '사망'}</span>`;
         
-        // 내 아이디 옆에는 (나) 표시
-        const nameTag = (uid === myID) ? `${uid} (나)` : uid;
-        
-        div.innerHTML = `
-            <span>${nameTag}</span>
-            <span class="badge ${p.isAlive ? 'status-alive' : 'status-dead'}">
-                ${p.isAlive ? '생존' : '사망'}
-            </span>
-        `;
-
-        // 생존해 있고, 밤이라면 클릭 가능하게 설정
-        if (p.isAlive && gameState.phase === "NIGHT") {
-            div.onclick = () => selectTarget(uid);
-        }
-
+        if (p.isAlive && gameState.phase === "NIGHT") div.onclick = () => selectTarget(uid);
         listContainer.appendChild(div);
     });
 
-    // 현재 게임 단계(낮/밤) 표시 업데이트
-    const phaseEl = document.getElementById('phase-display');
-    phaseEl.innerText = `🕒 ${gameState.phase || 'LOBBY'} - ${gameState.day || 0}일째`;
-    
-    if (gameState.phase === "NIGHT") {
-        phaseEl.style.color = "var(--mafia)";
-        document.body.style.backgroundColor = "#050505"; // 밤에는 더 어둡게
-    } else {
-        phaseEl.style.color = "var(--citizen)";
-        document.body.style.backgroundColor = var(--bg);
+    if (players[myID]) {
+        myRole = players[myID].role;
+        document.getElementById('role-name').innerText = `내 직업: ${myRole}`;
+        document.getElementById('role-name').style.color = (players[myID].team === "mafia") ? "var(--mafia)" : "var(--citizen)";
+        document.getElementById('role-desc').innerText = ROLES[myRole]?.desc || "대기 중...";
     }
+
+    const phaseEl = document.getElementById('phase-display');
+    phaseEl.innerText = `🕒 ${gameState.phase} - ${gameState.day || 0}일`;
+    document.body.style.backgroundColor = (gameState.phase === "NIGHT") ? "#050505" : "#0d0d0f";
 });
 
-// --- [9] 밤의 결과 판정 (아침이 올 때 호출) ---
-function processNightResults() {
-    const players = gameState.players;
-    const targets = gameState.targetList || {}; // 밤새 쌓인 선택 목록
-    let deadTonight = new Set();
-    let logs = [];
-
-    // [Step 1] 기술자(Engineer) - 최우선 순위 (능력 차단)
-    Object.keys(targets).forEach(fromId => {
-        if (targets[fromId].role === "기술자") {
-            const victimId = targets[fromId].to;
-            if (targets[victimId]) {
-                delete targets[victimId]; // 차단된 사람의 행동을 지움
-                logs.push(`⚙️ 기술자가 누군가의 장비를 고장냈습니다!`);
-            }
-        }
-    });
-
-    // [Step 2] 의사(Doctor) - 치료 대상 확인
-    const healedPlayers = new Set();
-    Object.values(targets).forEach(t => {
-        if (t.role === "의사") healedPlayers.add(t.to);
-    });
-
-    // [Step 3] 공격 처리 (마피아, 마녀, 암살자 등)
-    Object.keys(targets).forEach(fromId => {
-        const action = targets[fromId];
-        const victimId = action.to;
-
-        if (["마피아", "마녀", "암살자", "자경단"].includes(action.role)) {
-            // 의사가 살렸는가? (마녀의 저주는 의사도 못 막음)
-            if (healedPlayers.has(victimId) && action.role !== "마녀") {
-                logs.push(`🏥 의사가 ${victimId}님을 극적으로 살려냈습니다!`);
-            } else {
-                // 군인 방탄 확인
-                if (players[victimId].role === "군인" && players[victimId].life > 0) {
-                    players[victimId].life--;
-                    logs.push(`🛡️ 군인이 습격을 버텨냈습니다!`);
-                } else {
-                    deadTonight.add(victimId);
-                }
-            }
-        }
-    });
-
-    // [Step 4] 결과 반영
-    deadTonight.forEach(uid => {
-        players[uid].isAlive = false;
-        logs.push(`💀 ${uid}님이 처참하게 사망하셨습니다.`);
-    });
-
-    if (deadTonight.size === 0 && logs.length === 0) {
-        logs.push("☀️ 지난밤에는 아무 일도 일어나지 않았습니다.");
-    }
-
-    // [Step 5] 승리 조건 체크
-    const winner = checkVictory(players);
-
-    // [Step 6] DB 업데이트 (낮으로 전환)
-    db.ref(`rooms/${roomID}`).update({
-        players: players,
-        phase: "DAY",
-        targetList: {}, // 타겟 초기화
-        winner: winner || null
-    });
-
-    // 아침 알림 로그 전송
-    logs.forEach(msg => addLog(msg, "#fffa65"));
-}
-
-// --- [10] 승리 조건 판정 ---
-function checkVictory(players) {
-    const alive = Object.values(players).filter(p => p.isAlive);
-    const mafiaCount = alive.filter(p => p.team === "mafia").length;
-    const citizenCount = alive.filter(p => p.team === "citizen").length;
-
-    if (mafiaCount === 0) return "CITIZEN_WIN";
-    if (mafiaCount >= citizenCount) return "MAFIA_WIN";
-    return null;
-}
-
-// 5초마다 밤이 끝났는지 체크 (또는 수동 버튼으로 조절 가능)
-// 테스트를 위해 밤에 모든 생존자가 선택을 완료하면 자동으로 아침이 오게 설정할 수 있습니다.
+// --- [8] 밤 결과 처리 및 승리 판정 (방장 전용) ---
 setInterval(() => {
-    if (gameState.phase === "NIGHT" && myID === Object.keys(gameState.players)[0]) {
+    // 가장 먼저 입장한 사람이 방장 역할을 수행하여 결과 처리
+    if (gameState.phase === "NIGHT" && Object.keys(gameState.players)[0] === myID) {
         const targets = gameState.targetList || {};
-        const aliveCount = Object.values(gameState.players).filter(p => p.isAlive && ROLES[p.role].priority < 8).length;
+        const activePlayers = Object.values(gameState.players).filter(p => p.isAlive && p.role !== "시민" && p.role !== "정치인");
         
-        if (Object.keys(targets).length >= aliveCount) {
+        if (Object.keys(targets).length >= activePlayers.length && activePlayers.length > 0) {
             processNightResults();
         }
     }
-}, 3000);
+}, 4000);
 
-// 승리 시 알림
+function processNightResults() {
+    const players = gameState.players;
+    const targets = gameState.targetList || {};
+    let deadTonight = new Set();
+    let logs = [];
+
+    // 1. 기술자 능력 차단
+    Object.values(targets).forEach(t => {
+        if (t.role === "기술자" && targets[t.to]) {
+            delete targets[t.to];
+            logs.push("⚙️ 기술자가 능력을 차단했습니다!");
+        }
+    });
+
+    // 2. 의사 치료 확인
+    const healed = new Set();
+    Object.values(targets).forEach(t => { if (t.role === "의사") healed.add(t.to); });
+
+    // 3. 공격 판정
+    Object.values(targets).forEach(t => {
+        if (["마피아", "마녀", "암살자", "자경단"].includes(t.role)) {
+            if (healed.has(t.to) && t.role !== "마녀") {
+                logs.push("🏥 의사가 누군가를 살려냈습니다!");
+            } else if (players[t.to].role === "군인" && players[t.to].life > 0) {
+                players[t.to].life--;
+                logs.push("🛡️ 군인이 공격을 버텼습니다!");
+            } else {
+                deadTonight.add(t.to);
+            }
+        }
+    });
+
+    deadTonight.forEach(uid => { players[uid].isAlive = false; logs.push(`💀 ${uid}님이 사망했습니다.`); });
+    if (logs.length === 0) logs.push("☀️ 지난밤에는 아무 일도 없었습니다.");
+
+    const winner = checkVictory(players);
+    db.ref(`rooms/${roomID}`).update({
+        players: players, phase: "DAY", targetList: {}, day: gameState.day + 1, winner: winner || null
+    });
+    
+    logs.forEach(l => db.ref(`rooms/${roomID}/chats`).push({ sender: "시스템", text: l }));
+}
+
+function checkVictory(players) {
+    const alive = Object.values(players).filter(p => p.isAlive);
+    const mCount = alive.filter(p => p.team === "mafia").length;
+    const cCount = alive.filter(p => p.team === "citizen").length;
+    if (mCount === 0) return "CITIZEN";
+    if (mCount >= cCount) return "MAFIA";
+    return null;
+}
+
 db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
-    const winner = snap.val();
-    if (winner) {
-        alert(winner === "MAFIA_WIN" ? "마피아가 승리했습니다! 🔥" : "시민이 승리했습니다! 🌱");
-        // 게임 초기화 로직 추가 가능
-    }
+    if (snap.val()) alert(`${snap.val()} 승리!`);
 });
 </script>
 </body>
-
 </html>
-
-
