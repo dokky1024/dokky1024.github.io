@@ -8,54 +8,81 @@
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
     <style>
         :root { 
-            --bg: #0d0d0f; --panel: #1a1a1f; --acc: #ff4757; 
-            --text: #f1f2f6; --mafia: #8e44ad; --citizen: #2ecc71; 
-        }
-        body { 
-            background: var(--bg); color: var(--text); 
-            font-family: 'Apple SD Gothic Neo', sans-serif; 
-            margin: 0; display: flex; height: 100vh; overflow: hidden; 
-        }
-        #side-panel { width: 300px; background: var(--panel); border-right: 2px solid #333; display: flex; flex-direction: column; }
-        #main-panel { flex: 1; display: flex; flex-direction: column; }
-        .player-card { padding: 15px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
-        .player-card:hover { background: #25252b; }
-        .player-card.dead { opacity: 0.3; background: #000; pointer-events: none; }
-        .player-card.selected { border: 2px solid var(--acc); background: #2c2c34; }
-        #log-view { flex: 1; overflow-y: auto; padding: 20px; background: rgba(0,0,0,0.3); font-size: 14px; line-height: 1.8; }
-        #input-bar { height: 60px; background: #000; display: flex; padding: 10px; border-top: 1px solid #333; }
-        input { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 5px; outline: none; }
-        #my-status { padding: 20px; background: #111; border-top: 2px solid var(--acc); }
-        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .status-alive { background: var(--citizen); color: #000; }
-        .status-dead { background: var(--acc); color: #fff; }
+    --bg: #0d0d0f; --panel: #1a1a1f; --acc: #ff4757; 
+    --text: #f1f2f6; --mafia: #8e44ad; --citizen: #2ecc71; 
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { 
+    background: var(--bg); color: var(--text); 
+    font-family: sans-serif; margin: 0; padding: 0;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
+}
+
+/* 상단 정보창 */
+#header { height: 50px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; border-bottom: 1px solid #333; flex-shrink: 0; }
+
+/* 참여자 목록 (가로 스크롤로 변경하여 채팅 공간 확보) */
+#player-list { 
+    height: 110px; display: flex; overflow-x: auto; padding: 10px; gap: 10px; 
+    background: #111; border-bottom: 1px solid #333; flex-shrink: 0;
+}
+.player-card { 
+    min-width: 85px; height: 85px; background: #222; border-radius: 8px; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    font-size: 11px; border: 1px solid #444; flex-shrink: 0;
+}
+.player-card.selected { border: 2px solid var(--acc); background: #331a1a; }
+
+/* 채팅 로그 영역 */
+#log-view { flex: 1; overflow-y: auto; padding: 15px; font-size: 14px; background: rgba(0,0,0,0.2); min-height: 0; }
+
+/* 하단 입력 및 직업 정보 */
+#bottom-ui { background: var(--panel); border-top: 1px solid #333; flex-shrink: 0; }
+#my-status { padding: 8px 15px; font-size: 13px; border-bottom: 1px solid #222; display: flex; gap: 10px; }
+#input-bar { height: 60px; display: flex; padding: 10px; gap: 8px; }
+input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-radius: 20px; padding: 0 15px; outline: none; font-size: 16px; /* 아이폰 자동확대 방지 */ }
+#send-btn { background: none; border: none; color: var(--acc); font-weight: bold; padding: 0 10px; }
     </style>
 </head>
 <body>
 
-<div id="side-panel">
-    <div style="padding: 20px; font-weight: bold; border-bottom: 2px solid #333; background: #000; display: flex; justify-content: space-between;">
-        참여자 목록 <span id="player-count" style="color: var(--acc);">0</span>
-    </div>
-    <div id="player-list" style="flex: 1; overflow-y: auto;"></div>
-    <div id="my-status">
-        <div id="role-name" style="font-size: 1.2em; color: var(--acc); font-weight: bold;">연결 대기 중...</div>
-        <div id="role-desc" style="font-size: 0.9em; color: #aaa; margin-top: 5px;">잠시만 기다려주세요.</div>
-    </div>
+<div id="header">
+    <span id="phase-display" style="font-weight:bold;">🏠 LOBBY</span>
+    <span id="room-info" style="font-size:12px; color:#888;">ROOM: 001</span>
 </div>
 
-<div id="main-panel">
-    <div id="header" style="padding: 15px; background: #000; display: flex; justify-content: space-between; border-bottom: 1px solid #333;">
-        <span id="phase-display" style="font-weight: bold;">🏠 LOBBY</span>
-        <span id="room-info" style="color: #666;">ROOM: 001</span>
+<div id="player-list"></div>
+
+<div id="log-view">
+    <div style="color:#888;">[시스템] 비밀번호 인증 완료. 서버 연결 중...</div>
+</div>
+
+<div id="bottom-ui">
+    <div id="my-status">
+        <b id="role-name" style="color:var(--acc);">연결 중</b>
+        <span id="role-desc" style="color:#aaa;">...</span>
     </div>
-    <div id="log-view"></div>
     <div id="input-bar">
-        <input type="text" id="chat-input" placeholder="메시지를 입력하거나 !게임시작을 치세요...">
+        <input type="text" id="chat-input" placeholder="메시지 입력 또는 !게임시작">
+        <button id="send-btn">전송</button>
     </div>
 </div>
 
 <script>
+// [보안] 접속 비밀번호 설정 (원하는 비번으로 바꾸세요)
+const ROOM_PASSWORD = "1234"; 
+let accessGranted = false;
+
+while (!accessGranted) {
+    let inputPw = prompt("방 비밀번호를 입력하세요:");
+    if (inputPw === ROOM_PASSWORD) {
+        accessGranted = true;
+        alert("접속 성공! 즐거운 게임 되세요.");
+    } else {
+        alert("비밀번호가 틀렸습니다.");
+    }
+}
+
 // --- [1] 기본 변수 설정 ---
 const roomID = "ROOM_001";
 const myID = "Player_" + Math.floor(Math.random() * 1000);
@@ -75,6 +102,21 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+const sBtn = document.getElementById('send-btn');
+const cInput = document.getElementById('chat-input');
+
+sBtn.onclick = () => {
+    if(!cInput.value) return;
+    db.ref(`rooms/${roomID}/chats`).push({
+        sender: myID,
+        text: cInput.value
+    });
+    cInput.value = "";
+};
+
+// 엔터키 지원
+cInput.onkeypress = (e) => { if(e.key === 'Enter') sBtn.onclick(); };
 
 // --- [3] 20종 전체 직업 데이터 정의 ---
 const ROLES = {
@@ -277,3 +319,4 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 </script>
 </body>
 </html>
+
