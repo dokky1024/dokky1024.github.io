@@ -70,6 +70,17 @@
 
 <script>
 
+// 접속하자마자 실행되는 입장 코드
+db.ref(`rooms/${roomID}/players/${myID}`).set({
+    uid: myID,
+    isAlive: true,
+    role: "대기자",
+    team: "none"
+});
+
+// 창을 닫으면 DB에서 삭제 (선택 사항)
+db.ref(`rooms/${roomID}/players/${myID}`).onDisconnect().remove();
+
 // --- [1] Firebase 설정 (본인의 정보를 입력하세요) ---
 const firebaseConfig = {
     apiKey: "AIzaSyA6Plgr7YiOvluYlyWH3L3bhpQPDfvX0d0",
@@ -386,4 +397,5 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 });
 </script>
 </body>
+
 </html>
