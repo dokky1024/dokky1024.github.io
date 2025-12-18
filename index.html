@@ -91,11 +91,6 @@ input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-r
     </div>
 </div>
 
-<div id="header">
-    <span id="phase-display" style="font-weight:bold;">🏠 LOBBY</span>
-    <span id="room-info" style="font-size:12px; color:#888;">ROOM: 001</span>
-</div>
-
 <div id="player-list"></div>
 
 <div id="log-view">
@@ -148,8 +143,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let myID = ""; // 처음엔 비워둠
-
 // [닉네임 설정 함수]
 function setNickname() {
     const nick = document.getElementById('nick-input').value.trim();
@@ -189,18 +182,6 @@ cInput.onkeypress = (e) => { if(e.key === 'Enter') sBtn.onclick(); };
 
 const sBtn = document.getElementById('send-btn');
 const cInput = document.getElementById('chat-input');
-
-sBtn.onclick = () => {
-    if(!cInput.value) return;
-    db.ref(`rooms/${roomID}/chats`).push({
-        sender: myID,
-        text: cInput.value
-    });
-    cInput.value = "";
-};
-
-// 엔터키 지원
-cInput.onkeypress = (e) => { if(e.key === 'Enter') sBtn.onclick(); };
 
 // --- [3] 20종 전체 직업 데이터 정의 ---
 const ROLES = {
@@ -403,5 +384,6 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 </script>
 </body>
 </html>
+
 
 
