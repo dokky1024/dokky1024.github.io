@@ -96,6 +96,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// Firebase 연결 도구 생성
+const db = firebase.database();
+
+// [중요] 접속하자마자 내 정보를 DB에 등록하는 코드
+// 이 코드가 실행되어야 403 에러가 사라지고 데이터가 쌓입니다.
+db.ref(`rooms/${roomID}/players/${myID}`).set({
+    uid: myID,
+    isAlive: true,
+    role: "대기자",
+    team: "none"
+}).then(() => {
+    console.log("DB 접속 성공!");
+}).catch((error) => {
+    console.error("DB 접속 실패(403 등): ", error);
+
 // --- [2] 게임 기본 변수 ---
 let roomID = "ROOM_001"; // 나중에 방 생성 기능으로 확장 가능
 let myID = "Player_" + Math.floor(Math.random() * 1000);
@@ -399,4 +414,5 @@ db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
 </body>
 
 </html>
+
 
