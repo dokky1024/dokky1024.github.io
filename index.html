@@ -44,6 +44,29 @@ footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; 
 /* 도움말 모달 */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; }
 .modal-content { background: #222; padding: 20px; border-radius: 10px; width: 85%; max-height: 70%; overflow-y: auto; }
+<div id="setup-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close-setup" onclick="closeSetup()">&times;</span>
+        <h2>게임 룰 설정</h2>
+        <div class="setup-item">
+            <label>회의 시간(초):</label>
+            <input type="number" id="setup-meeting-time" value="60">
+        </div>
+        <div class="setup-item">
+            <label>투표 시간(초):</label>
+            <input type="number" id="setup-vote-time" value="30">
+        </div>
+        <div class="setup-item">
+            <label>마피아 수:</label>
+            <input type="number" id="setup-mafia-count" value="1">
+        </div>
+        <hr>
+        <h3>사용할 직업 (체크리스트)</h3>
+        <div id="job-checklist">
+            </div>
+        <button onclick="saveSetup()" class="save-btn">설정 저장</button>
+    </div>
+</div>
 
 #vote-panel button {
     width: 100%;
@@ -55,6 +78,11 @@ footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; 
     border-radius: 5px;
 }
 #vote-panel button:hover { background: #cf0000; }
+.setup-item { display: flex; justify-content: space-between; margin: 10px 0; align-items: center; }
+.setup-item input { width: 60px; background: #333; border: 1px solid #555; color: #fff; padding: 5px; }
+#job-checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 15px 0; max-height: 200px; overflow-y: auto; text-align: left; }
+.job-opt { font-size: 0.8rem; display: flex; align-items: center; gap: 5px; }
+.save-btn { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
 
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -178,6 +206,7 @@ footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; 
         listenChat();
         listenPlayers();
         listenGameState();
+        listenWeather();
     }
 
     // 4. 실시간 채팅 수신
@@ -326,7 +355,9 @@ function startGame() {
         
         // 직업 무작위 셔플
         selectedJobs.sort(() => Math.random() - 0.5);
-
+        
+        decideWeather();
+        
         const updates = {};
         userIds.forEach((id, index) => {
             let jobId = selectedJobs[index];
@@ -521,11 +552,188 @@ function finalizeVote(votes) {
     // 가장 표를 많이 받은 사람 선출 로직
     // 결과에 따라 유저 status를 "dead"로 바꾸고 다시 밤(night)으로 전환
     sendSystemMessage("투표 결과, 한 명이 처형되었습니다.");
+    decideWeather();
     db.ref('gameInfo/state').set("night");
     db.ref('votes').remove();
 }
+
+// 1. 기상 상황 정의 및 발생 로직
+const WEATHER_TYPES = {
+    A: { name: "황사", desc: "감시자 능력 불가, 배신자 전직 지연" },
+    B: { name: "정전", desc: "개표인 조작 기회, 중립 직업 능력 불가" },
+    C: { name: "한파/폭염", desc: "회의 시간 단축, 밤에 무작위 사망 발생" },
+    D: { name: "홍수", desc: "회의 건너뛰기, 시장/개표인 능력 불가" },
+    E: { name: "안개", desc: "경찰 조사 오류, 마녀 낮 살해 봉쇄" },
+    F: { name: "계엄령", desc: "회의 없음, 무조건 처형, 자경단 페널티 면제" },
+    G: { name: "축제", desc: "회의 시간 2배, 아무도 안 죽으면 감염 치료" }
+};
+
+let currentWeather = null;
+
+// 밤이 시작될 때 방장이 날씨를 결정
+function decideWeather() {
+    if (!isHost) return;
+
+    let rand = Math.random() * 100;
+    let selected = null;
+
+    if (rand < 10) selected = "A";
+    else if (rand < 20) selected = "B";
+    else if (rand < 30) selected = "C";
+    else if (rand < 40) selected = "D";
+    else if (rand < 50) selected = "E";
+    else if (rand < 60) selected = "F";
+    else if (rand < 70) selected = "G";
+    else selected = "NONE"; // 30% 확률로 맑음
+
+    db.ref('gameInfo/weather').set(selected);
+}
+
+// 2. 날씨 및 직업별 능력 제한 로직 (상태 변화 리스너에 추가)
+function listenWeather() {
+    db.ref('gameInfo/weather').on('value', (snapshot) => {
+        currentWeather = snapshot.val();
+        if (currentWeather && currentWeather !== "NONE") {
+            const w = WEATHER_TYPES[currentWeather];
+            sendSystemMessage(`[기상 공지: ${w.name}] ${w.desc}`);
+            applyWeatherEffect(currentWeather);
+        }
+    });
+}
+
+function applyWeatherEffect(weather) {
+    // 날씨에 따른 시간 조절 예시
+    if (weather === "C") { // 한파/폭염
+        // 기존 설정된 회의 시간을 절반으로 줄임 (로직 연동 필요)
+    } else if (weather === "G") { // 축제
+        // 회의 시간 2배
+    }
+}
+
+// 3. 광대 단독 승리 및 게임 종료 체크
+function checkVictory(deadId, cause) {
+    db.ref('users').once('value', (snapshot) => {
+        const users = snapshot.val();
+        const deadUser = users[deadId];
+
+        // [광대 승리] 투표로 처형당했을 경우
+        if (deadUser.job === "광대" && cause === "vote") {
+            endGame("광대 단독 승리", "광대가 투표로 처형되어 승리했습니다!");
+            return;
+        }
+
+        // 마피아 승리 조건: 마피아 수 >= 시민 + 중립 수
+        // 시민 승리 조건: 마피아 0명
+        // (상세 인원 카운트 로직 구현...)
+    });
+}
+
+function endGame(winnerTitle, message) {
+    db.ref('chat').push({
+        sender: "📢 종료",
+        text: `[${winnerTitle}] ${message}`,
+        type: "system"
+    });
+    // 모든 유저 입력창 차단
+    document.getElementById('chat-input').disabled = true;
+    gameState = "finished";
+}
+
+// 4. 경찰 조사 능력 (안개 날씨 예외 처리 포함)
+function policeCheck(targetId) {
+    if (currentWeather === "E") { // 안개
+        const rand = Math.random();
+        if (rand < 0.5) return "조사 불가";
+        // 반대 결과 리턴 로직 등...
+    }
+    // 일반적인 팀 확인 로직...
+}
+
+// 5. 밤 활동 데이터 전송 (방식 보완)
+function useAbility(targetId) {
+    if (gameState !== "night" || isDead) return;
+    
+    // 날씨에 따른 능력 봉쇄 체크
+    if (currentWeather === "A" && myJob === "감시자") return alert("황사로 인해 능력을 쓸 수 없습니다.");
+    if (currentWeather === "B" && myTeam === "neutral") return alert("정전으로 인해 능력을 쓸 수 없습니다.");
+
+    db.ref(`actions/${myId}`).set({
+        actor: myId,
+        target: targetId,
+        type: JOBS[myJobId].ability
+    });
+    displayMessage("시스템", `${targetId}에게 능력을 사용했습니다.`, "system");
+}
+// 1. 설정창 열기/닫기 및 직업 리스트 생성
+document.getElementById('setup-btn').addEventListener('click', () => {
+    if (!isHost) return alert("방장만 설정을 변경할 수 있습니다.");
+    document.getElementById('setup-modal').classList.remove('hidden');
+    renderJobChecklist();
+});
+
+function closeSetup() {
+    document.getElementById('setup-modal').classList.add('hidden');
+}
+
+function renderJobChecklist() {
+    const listEl = document.getElementById('job-checklist');
+    listEl.innerHTML = "";
+    // JOBS 객체에서 1~21번까지 체크박스 생성
+    for (let id in JOBS) {
+        listEl.innerHTML += `
+            <div class="job-opt">
+                <input type="checkbox" class="job-check" value="${id}" checked>
+                <span>${JOBS[id].name}</span>
+            </div>
+        `;
+    }
+}
+
+// 2. 설정값을 DB에 저장
+function saveSetup() {
+    const config = {
+        meetingTime: document.getElementById('setup-meeting-time').value,
+        voteTime: document.getElementById('setup-vote-time').value,
+        mafiaCount: document.getElementById('setup-mafia-count').value,
+        enabledJobs: Array.from(document.querySelectorAll('.job-check:checked')).map(el => el.value)
+    };
+    db.ref('gameConfig').set(config);
+    alert("설정이 저장되었습니다.");
+    closeSetup();
+}
+
+// 3. 게임 시작 시 설정값 반영 (Part 3의 startGame 수정 버전)
+function startGameWithConfig() {
+    db.ref('gameConfig').once('value', (configSnap) => {
+        const config = configSnap.val() || { meetingTime: 60, mafiaCount: 1, enabledJobs: [21] };
+        
+        db.ref('users').once('value', (userSnap) => {
+            const users = userSnap.val();
+            const userIds = Object.keys(users);
+            if (userIds.length < 3) return sendSystemMessage("게임은 3명 이상 필요합니다.");
+
+            // 설정된 직업 리스트에서 인원수만큼 랜덤 추출
+            let pool = [...config.enabledJobs];
+            let selectedJobs = [];
+            
+            // 인원수 맞추기 (시민으로 채우기 등)
+            for(let i=0; i<userIds.length; i++) {
+                let jobIndex = Math.floor(Math.random() * pool.length);
+                selectedJobs.push(pool[jobIndex]);
+            }
+
+            // ... 이후 Part 3의 직업 배분 및 DB 업데이트 로직 실행 ...
+            // (이전 파트에서 만든 startGame 로직에 config 값을 대입)
+        });
+    });
+}
+
+// 4. 도움말 모달 제어
+document.getElementById('help-btn').onclick = () => document.getElementById('help-modal').classList.remove('hidden');
+document.querySelector('.close-modal').onclick = () => document.getElementById('help-modal').classList.add('hidden');
 
 </script>
 
 </body>
 </html>
+
