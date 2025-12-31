@@ -3,372 +3,529 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MAFIA: The Rule Breaker</title>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <title>Web Mafia Online</title>
     <style>
-        :root { 
-    --bg: #0d0d0f; --panel: #1a1a1f; --acc: #ff4757; 
-    --text: #f1f2f6; --mafia: #8e44ad; --citizen: #2ecc71; 
+        /* 기본 초기화 */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { background-color: #0c0c0c; color: #e0e0e0; font-family: 'Pretendard', sans-serif; overflow: hidden; }
+
+.hidden { display: none !important; }
+
+/* 입장 게이트 */
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.login-box { text-align: center; width: 80%; max-width: 300px; }
+.login-box h1 { color: #cf0000; font-size: 3rem; margin-bottom: 20px; letter-spacing: 5px; }
+.login-box input { width: 100%; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; text-align: center; }
+.login-box button { width: 100%; padding: 12px; background: #cf0000; border: none; color: #fff; font-weight: bold; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+
+/* 메인 구조 */
+#game-container { display: flex; flex-direction: column; height: 100vh; }
+header { height: 50px; background: #1a1a1a; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; border-bottom: 1px solid #333; }
+#chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+
+/* 채팅 스타일 */
+.system-msg { color: #ffcc00; font-size: 0.9rem; text-align: center; background: rgba(255, 204, 0, 0.1); padding: 5px; border-radius: 5px; }
+.chat-msg { background: #222; padding: 8px 12px; border-radius: 15px; max-width: 85%; align-self: flex-start; line-height: 1.4; }
+.my-msg { background: #3d3d3d; align-self: flex-end; }
+
+/* 하단 입력바 */
+footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; padding: 10px; gap: 10px; border-top: 1px solid #333; }
+#chat-input { flex: 1; background: #2a2a2a; border: none; color: #fff; padding: 10px; border-radius: 20px; }
+#send-btn { background: none; border: none; color: #cf0000; font-size: 1.5rem; }
+
+/* 사이드바 */
+#sidebar { position: fixed; top: 0; left: 0; width: 70%; height: 100%; background: #151515; z-index: 500; transition: transform 0.3s ease; box-shadow: 5px 0 15px rgba(0,0,0,0.5); padding: 20px; }
+.sidebar-hidden { transform: translateX(-100%); }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+#player-list { list-style: none; overflow-y: auto; height: calc(100% - 120px); }
+#player-list li { padding: 10px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+.sidebar-footer { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 20px; font-size: 1.5rem; color: #888; }
+
+/* 도움말 모달 */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.modal-content { background: #222; padding: 20px; border-radius: 10px; width: 85%; max-height: 70%; overflow-y: auto; }
+
+#vote-panel button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 5px;
 }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { 
-    background: var(--bg); color: var(--text); 
-    font-family: sans-serif; margin: 0; padding: 0;
-    height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
-}
+#vote-panel button:hover { background: #cf0000; }
 
-/* 모바일에서 높이가 꽉 차도록 설정 */
-html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
-
-#main-panel { height: 100%; display: flex; flex-direction: column; }
-#log-view { flex: 1; overflow-y: auto; padding: 15px; }
-
-/* 하단 입력바가 키보드 위로 오도록 설정 */
-#bottom-ui { flex-shrink: 0; background: var(--panel); border-top: 1px solid #333; }
-#input-bar { height: 60px; display: flex; padding: 10px; gap: 8px; }
-
-/* 닉네임 입력창 스타일 */
-input { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #000; color: #fff; }
-
-/* 상단 정보창 */
-#header { height: 50px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; border-bottom: 1px solid #333; flex-shrink: 0; }
-
-/* 참여자 목록 (가로 스크롤로 변경하여 채팅 공간 확보) */
-#player-list { 
-    height: 110px; display: flex; overflow-x: auto; padding: 10px; gap: 10px; 
-    background: #111; border-bottom: 1px solid #333; flex-shrink: 0;
-}
-.player-card { 
-    min-width: 85px; height: 85px; background: #222; border-radius: 8px; 
-    display: flex; flex-direction: column; align-items: center; justify-content: center; 
-    font-size: 11px; border: 1px solid #444; flex-shrink: 0;
-}
-.player-card.selected { border: 2px solid var(--acc); background: #331a1a; }
-
-/* 채팅 로그 영역 */
-#log-view { flex: 1; overflow-y: auto; padding: 15px; font-size: 14px; background: rgba(0,0,0,0.2); min-height: 0; }
-
-/* 하단 입력 및 직업 정보 */
-#bottom-ui { background: var(--panel); border-top: 1px solid #333; flex-shrink: 0; }
-#my-status { padding: 8px 15px; font-size: 13px; border-bottom: 1px solid #222; display: flex; gap: 10px; }
-#input-bar { height: 60px; display: flex; padding: 10px; gap: 8px; }
-input { flex: 1; background: #000; border: 1px solid #444; color: #fff; border-radius: 20px; padding: 0 15px; outline: none; font-size: 16px; /* 아이폰 자동확대 방지 */ }
-#send-btn { background: none; border: none; color: var(--acc); font-weight: bold; padding: 0 10px; }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-<body>
-    <body>
-    <div id="nickname-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-        <h2 style="color:#ff4757; margin-bottom:20px;">MAFIA: Rule Breaker</h2>
-        <input type="text" id="nick-input" placeholder="닉네임을 입력하세요" style="width:250px; padding:12px; border-radius:25px; border:none; margin-bottom:15px; text-align:center;">
-        <button onclick="setNickname()" style="width:250px; padding:12px; background:#ff4757; color:white; border:none; border-radius:25px; font-weight:bold; cursor:pointer;">입장하기</button>
-    </div>
 
-    <div id="header" style="height:50px; background:#000; display:flex; justify-content:space-between; align-items:center; padding:0 15px; border-bottom:1px solid #333;">
-        <div onclick="toggleSidebar()" style="cursor:pointer; font-size:24px; color:#fff;">☰</div>
-        <span id="phase-display" style="font-weight:bold; color:#ff4757;">🏠 LOBBY</span>
-        <span id="room-info" style="font-size:12px; color:#888;">ROOM: 001 <span id="player-count" style="margin-left:5px;">(0)</span></span>
-    </div>
-
-    <div style="display:flex; flex:1; position:relative; overflow:hidden; height:calc(100vh - 50px);">
-        <div id="sidebar" style="width:200px; background:#1a1a1f; border-right:1px solid #333; position:absolute; left:-200px; top:0; bottom:0; z-index:500; transition:0.3s; overflow-y:auto;">
-            <div style="padding:15px; font-weight:bold; border-bottom:1px solid #333; color:#fff;">참여자 목록</div>
-            <div id="player-list"></div>
+    <div id="login-gate" class="overlay">
+        <div class="login-box">
+            <h1>MAFIA</h1>
+            <input type="password" id="room-pw" placeholder="비밀번호 입력 (1024)">
+            <input type="text" id="user-nickname" placeholder="닉네임 입력" maxlength="8">
+            <button onclick="checkAccess()">입장하기</button>
         </div>
+    </div>
 
-        <div id="main-panel" style="flex:1; display:flex; flex-direction:column; background:#0d0d0f;">
-            <div id="log-view" style="flex:1; overflow-y:auto; padding:15px; font-size:14px; color:#ddd;"></div>
-            
-            <div id="bottom-ui" style="background:#1a1a1f; border-top:1px solid #333;">
-                <div id="my-status" style="padding:8px 15px; font-size:13px; border-bottom:1px solid #222; display:flex; gap:10px;">
-                    <b id="role-name" style="color:#ff4757;">연결 대기</b> : <span id="role-desc" style="color:#aaa;">닉네임을 입력해주세요.</span>
-                </div>
-                <div id="input-bar" style="height:60px; display:flex; padding:10px; gap:8px;">
-                    <input type="text" id="chat-input" placeholder="메시지 입력..." style="flex:1; background:#000; border:1px solid #444; color:#fff; border-radius:20px; padding:0 15px; outline:none;">
-                    <button id="send-btn" style="background:none; border:none; color:#ff4757; font-weight:bold; padding:0 10px; cursor:pointer;">전송</button>
-                </div>
+    <div id="game-container" class="hidden">
+        <header>
+            <div id="menu-btn" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
             </div>
+            <div id="game-status">대기 중...</div>
+            <div id="timer">00:00</div>
+        </header>
+
+        <main id="chat-area">
+            <div class="system-msg">방에 입장했습니다. !게임시작을 입력하세요.</div>
+        </main>
+
+        <footer>
+            <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+            <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+        </footer>
+
+        <aside id="sidebar" class="sidebar-hidden">
+            <div class="sidebar-header">
+                <h3>생존자 명단</h3>
+                <i class="fas fa-times" onclick="toggleSidebar()"></i>
+            </div>
+            <ul id="player-list">
+                </ul>
+            <div class="sidebar-footer">
+                <i class="fas fa-cog" id="setup-btn" title="설정"></i>
+                <i class="fas fa-question-circle" id="help-btn" title="도움말"></i>
+            </div>
+        </aside>
+    </div>
+
+    <div id="help-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>게임 설명</h2>
+            <p>마피아는 시민을 전멸시키면 승리합니다.</p>
+            <p>시민은 모든 마피아를 찾아내면 승리합니다.</p>
+            <p>중립은 각자의 목표를 달성해야 합니다.</p>
         </div>
     </div>
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
 
 <script>
-// [보안] 접속 비밀번호 설정 (원하는 비번으로 바꾸세요)
-const ROOM_PASSWORD = "1234"; 
-let accessGranted = false;
+    // 1. Firebase 설정 (본인의 Firebase 프로젝트 키로 교체 필요)
+    const firebaseConfig = {
+        apiKey: "AIzaSyA6Plgr7YiOvluYlyWH3L3bhpQPDfvX0d0",
+  authDomain: "mafiagamejjjdaon-8d20d.firebaseapp.com",
+  databaseURL: "https://mafiagamejjjdaon-8d20d-default-rtdb.firebaseio.com",
+  projectId: "mafiagamejjjdaon-8d20d",
+  storageBucket: "mafiagamejjjdaon-8d20d.firebasestorage.app",
+  messagingSenderId: "740156732852",
+  appId: "1:740156732852:web:738ccad1d04e9f83a52ee1"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-while (!accessGranted) {
-    let inputPw = prompt("방 비밀번호를 입력하세요:");
-    if (inputPw === ROOM_PASSWORD) {
-        accessGranted = true;
-        alert("접속 성공! 즐거운 게임 되세요.");
-    } else {
-        alert("비밀번호가 틀렸습니다.");
+    // 전역 변수
+    let myNickname = "";
+    let isHost = false;
+    let myId = Math.random().toString(36).substring(2, 9); // 임시 고유 ID
+
+    // 2. 입장 체크 함수
+    function checkAccess() {
+        const pw = document.getElementById('room-pw').value;
+        const nick = document.getElementById('user-nickname').value.trim();
+
+        if (pw !== "1024") {
+            alert("비밀번호가 틀렸습니다.");
+            return;
+        }
+        if (!nick) {
+            alert("닉네임을 입력해주세요.");
+            return;
+        }
+
+        myNickname = nick;
+        document.getElementById('login-gate').classList.add('hidden');
+        document.getElementById('game-container').classList.remove('hidden');
+        
+        enterRoom();
     }
-}
 
-// --- [1] 기본 변수 설정 ---
-const roomID = "ROOM_001";
-let myID = "";
-let myRole = "대기자";
-let gameState = { phase: "LOBBY", players: {}, targetList: {} };
-
-// --- [2] Firebase 설정 ---
-const firebaseConfig = {
-    apiKey: "AIzaSyA6Plgr7YiOvluYlyWH3L3bhpQPDfvX0d0",
-    authDomain: "mafiagamejjjdaon-8d20d.firebaseapp.com",
-    databaseURL: "https://mafiagamejjjdaon-8d20d-default-rtdb.firebaseio.com",
-    projectId: "mafiagamejjjdaon-8d20d",
-    storageBucket: "mafiagamejjjdaon-8d20d.firebasestorage.app",
-    messagingSenderId: "740156732852",
-    appId: "1:740156732852:web:738ccad1d04e9f83a52ee1"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// [닉네임 설정 함수]
-function setNickname() {
-    const nick = document.getElementById('nick-input').value.trim();
-    if (!nick) { alert("닉네임을 입력해주세요!"); return; }
-    
-    myID = nick; // 입력한 닉네임을 ID로 사용
-    document.getElementById('nickname-overlay').style.display = 'none';
-    
-    // DB에 유저 정보 등록
-    db.ref(`rooms/${roomID}/players/${myID}`).set({
-        uid: myID, isAlive: true, role: "대기자", team: "none"
-    });
-    addLog(`[시스템] ${myID}님 환영합니다!`);
-}
-
-// [사이드바 토글 함수]
-let sidebarOpen = false;
-function toggleSidebar() {
-    const sb = document.getElementById('sidebar');
-    sidebarOpen = !sidebarOpen;
-    sb.style.left = sidebarOpen ? "0" : "-200px";
-}
-
-// [채팅 전송 로직 재확인] - 꼭 다시 체크하세요!
-const sBtn = document.getElementById('send-btn');
-const cInput = document.getElementById('chat-input');
-
-sBtn.onclick = () => {
-    if(!cInput.value || !myID) return;
-    db.ref(`rooms/${roomID}/chats`).push({
-        sender: myID,
-        text: cInput.value
-    });
-    cInput.value = "";
-};
-cInput.onkeypress = (e) => { if(e.key === 'Enter') sBtn.onclick(); };
-
-// --- [3] 20종 전체 직업 데이터 정의 ---
-const ROLES = {
-    "시민": { team: "citizen", priority: 10, desc: "추리로 마피아를 잡으세요." },
-    "의사": { team: "citizen", priority: 2, desc: "밤마다 한 명을 마피아의 공격으로부터 치료합니다." },
-    "경찰": { team: "citizen", priority: 5, desc: "밤마다 한 명이 마피아인지 조사합니다." },
-    "군인": { team: "citizen", priority: 3, desc: "공격을 1회 견디며 스파이의 조사를 알아챕니다." },
-    "정치인": { team: "citizen", priority: 9, desc: "투표 시 2표로 계산되며 처형되지 않습니다." },
-    "영매": { team: "citizen", priority: 6, desc: "죽은 자들의 대화를 듣습니다." },
-    "연인": { team: "citizen", priority: 8, desc: "서로를 알 수 있으며 한 명 사망 시 같이 죽습니다." },
-    "자경단": { team: "citizen", priority: 4, desc: "밤에 한 명을 사살합니다. 시민 사살 시 자살합니다." },
-    "기자": { team: "citizen", priority: 7, desc: "조사한 사람의 직업을 다음날 공표합니다." },
-    "테러리스트": { team: "citizen", priority: 9, desc: "처형 시 한 명을 같이 데려갑니다." },
-    "사설탐정": { team: "citizen", priority: 5, desc: "누구를 클릭했는지 동선을 확인합니다." },
-    "성직자": { team: "citizen", priority: 1, desc: "사망자 한 명을 부활시킵니다. (1회)" },
-    "기술자": { team: "citizen", priority: 1, desc: "선택한 사람의 능력을 그날 밤 무력화합니다." },
-    "마피아": { team: "mafia", priority: 4, desc: "밤마다 시민 한 명을 살해합니다." },
-    "스파이": { team: "mafia", priority: 5, desc: "한 명의 정체를 알아내 마피아와 접선합니다." },
-    "짐승인간": { team: "mafia", priority: 4, desc: "마피아 조사에 걸리지 않으며 함께 공격합니다." },
-    "마녀": { team: "mafia", priority: 4, desc: "저주로 의사의 치료를 무시하고 죽입니다." },
-    "암살자": { team: "mafia", priority: 4, desc: "직업을 맞추면 즉시 살해합니다." },
-    "도둑": { team: "neutral", priority: 2, desc: "직업을 훔칩니다." },
-    "교주": { team: "neutral", priority: 8, desc: "사람들을 포교하여 승리를 노립니다." }
-};
-
-// --- [4] 초기 접속 및 채팅 설정 ---
-db.ref(`rooms/${roomID}/players/${myID}`).set({
-    uid: myID, isAlive: true, role: "대기자", team: "none"
-});
-db.ref(`rooms/${roomID}/players/${myID}`).onDisconnect().remove();
-
-const chatInput = document.getElementById('chat-input');
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && chatInput.value.trim()) {
-        const text = chatInput.value;
-        db.ref(`rooms/${roomID}/chats`).push({ sender: myID, text: text });
-        chatInput.value = "";
-    }
-});
-
-db.ref(`rooms/${roomID}/chats`).on('child_added', (snapshot) => {
-    const chat = snapshot.val();
-    addLog(`${chat.sender}: ${chat.text}`);
-    if (chat.text === "!게임시작") checkAndStartGame();
-});
-
-function addLog(msg, color = "#fff") {
-    const logView = document.getElementById('log-view');
-    const div = document.createElement('div');
-    div.innerText = msg;
-    div.style.color = color;
-    logView.appendChild(div);
-    logView.scrollTop = logView.scrollHeight;
-}
-
-// --- [5] 게임 시스템 로직 (시작, 직업 배정) ---
-function checkAndStartGame() {
-    db.ref(`rooms/${roomID}/players`).once('value', (snapshot) => {
-        const players = snapshot.val() || {};
-        const uids = Object.keys(players);
-        if (uids.length < 3) { alert("최소 3명 이상의 플레이어가 필요합니다!"); return; }
-
-        let rolePool = ["마피아", "의사", "경찰", "기술자", "군인", "스파이"];
-        while (rolePool.length < uids.length) rolePool.push("시민");
-        rolePool = rolePool.sort(() => Math.random() - 0.5);
-
-        uids.forEach((uid, index) => {
-            const rName = rolePool[index];
-            players[uid].role = rName;
-            players[uid].team = ROLES[rName].team;
-            players[uid].isAlive = true;
-            players[uid].life = (rName === "군인") ? 1 : 0;
+    // 3. 방 입장 및 유저 등록
+    function enterRoom() {
+        const userRef = db.ref('users/' + myId);
+        userRef.set({
+            nickname: myNickname,
+            isHost: false,
+            status: "alive"
         });
 
-        db.ref(`rooms/${roomID}`).update({
-            phase: "NIGHT", day: 1, players: players, targetList: {}, winner: null
+        // 브라우저 종료 시 유저 정보 삭제
+        userRef.onDisconnect().remove();
+
+        // 방장 선출 로직 (가장 먼저 들어온 유저)
+        db.ref('users').limitToFirst(1).on('value', (snapshot) => {
+            const firstUser = snapshot.val();
+            if (firstUser && Object.keys(firstUser)[0] === myId) {
+                isHost = true;
+                userRef.update({ isHost: true });
+            }
         });
-        addLog("[시스템] 게임이 시작되었습니다! 밤이 찾아왔습니다.", "var(--acc)");
-    });
-}
 
-// --- [6] 밤의 능력 사용 (클릭 이벤트) ---
-function selectTarget(targetId) {
-    if (gameState.phase !== "NIGHT") return;
-    if (myRole === "시민" || myRole === "정치인") {
-        addLog("당신은 능력이 없습니다.", "#888");
-        return;
+        listenChat();
+        listenPlayers();
+        listenGameState();
     }
-    db.ref(`rooms/${roomID}/targetList/${myID}`).set({ from: myID, to: targetId, role: myRole });
-    addLog(`${targetId}님을 타겟으로 선택했습니다.`, "var(--acc)");
-    
-    // 강조 표시
-    const cards = document.querySelectorAll('.player-card');
-    cards.forEach(c => {
-        c.classList.remove('selected');
-        if (c.getAttribute('data-uid') === targetId) c.classList.add('selected');
-    });
-}
 
-// --- [7] 실시간 데이터 감시 및 UI 업데이트 ---
-db.ref(`rooms/${roomID}`).on('value', (snapshot) => {
-    gameState = snapshot.val() || {};
-    const players = gameState.players || {};
-    const listContainer = document.getElementById('player-list');
-    listContainer.innerHTML = "";
-    
-    document.getElementById('player-count').innerText = Object.keys(players).length;
+    // 4. 실시간 채팅 수신
+    function listenChat() {
+        const chatRef = db.ref('chat');
+        chatRef.limitToLast(50).on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            displayMessage(data.sender, data.text, data.type);
+        });
+    }
 
-    Object.keys(players).forEach(uid => {
-        const p = players[uid];
-        const div = document.createElement('div');
-        div.className = `player-card ${p.isAlive ? '' : 'dead'}`;
-        div.setAttribute('data-uid', uid);
-        div.innerHTML = `<span>${uid}${uid === myID ? ' (나)' : ''}</span><span class="badge ${p.isAlive ? 'status-alive' : 'status-dead'}">${p.isAlive ? '생존' : '사망'}</span>`;
+    // 5. 메시지 표시 함수
+    function displayMessage(sender, text, type) {
+        const chatArea = document.getElementById('chat-area');
+        const msgDiv = document.createElement('div');
         
-        if (p.isAlive && gameState.phase === "NIGHT") div.onclick = () => selectTarget(uid);
-        listContainer.appendChild(div);
-    });
-
-    if (players[myID]) {
-        myRole = players[myID].role;
-        document.getElementById('role-name').innerText = `내 직업: ${myRole}`;
-        document.getElementById('role-name').style.color = (players[myID].team === "mafia") ? "var(--mafia)" : "var(--citizen)";
-        document.getElementById('role-desc').innerText = ROLES[myRole]?.desc || "대기 중...";
-    }
-
-    const phaseEl = document.getElementById('phase-display');
-    phaseEl.innerText = `🕒 ${gameState.phase} - ${gameState.day || 0}일`;
-    document.body.style.backgroundColor = (gameState.phase === "NIGHT") ? "#050505" : "#0d0d0f";
-});
-
-// --- [8] 밤 결과 처리 및 승리 판정 (방장 전용) ---
-setInterval(() => {
-    // 가장 먼저 입장한 사람이 방장 역할을 수행하여 결과 처리
-    if (gameState.phase === "NIGHT" && Object.keys(gameState.players)[0] === myID) {
-        const targets = gameState.targetList || {};
-        const activePlayers = Object.values(gameState.players).filter(p => p.isAlive && p.role !== "시민" && p.role !== "정치인");
+        if (type === "system") {
+            msgDiv.className = "system-msg";
+            msgDiv.innerText = text;
+        } else {
+            msgDiv.className = (sender === myNickname) ? "chat-msg my-msg" : "chat-msg";
+            msgDiv.innerText = `${sender}: ${text}`;
+        }
         
-        if (Object.keys(targets).length >= activePlayers.length && activePlayers.length > 0) {
-            processNightResults();
-        }
+        chatArea.appendChild(msgDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
     }
-}, 4000);
 
-function processNightResults() {
-    const players = gameState.players;
-    const targets = gameState.targetList || {};
-    let deadTonight = new Set();
-    let logs = [];
-
-    // 1. 기술자 능력 차단
-    Object.values(targets).forEach(t => {
-        if (t.role === "기술자" && targets[t.to]) {
-            delete targets[t.to];
-            logs.push("⚙️ 기술자가 능력을 차단했습니다!");
-        }
+    // 6. 메시지 전송 및 명령어 처리
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
     });
 
-    // 2. 의사 치료 확인
-    const healed = new Set();
-    Object.values(targets).forEach(t => { if (t.role === "의사") healed.add(t.to); });
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
 
-    // 3. 공격 판정
-    Object.values(targets).forEach(t => {
-        if (["마피아", "마녀", "암살자", "자경단"].includes(t.role)) {
-            if (healed.has(t.to) && t.role !== "마녀") {
-                logs.push("🏥 의사가 누군가를 살려냈습니다!");
-            } else if (players[t.to].role === "군인" && players[t.to].life > 0) {
-                players[t.to].life--;
-                logs.push("🛡️ 군인이 공격을 버텼습니다!");
+        // 명령어 처리
+        if (text === "!클리어") {
+            document.getElementById('chat-area').innerHTML = "";
+            input.value = "";
+            return;
+        }
+
+        if (text === "!게임시작") {
+            if (!isHost) {
+                displayMessage("시스템", "방장만 게임을 시작할 수 있습니다.", "system");
             } else {
-                deadTonight.add(t.to);
+                checkStartGame();
+            }
+            input.value = "";
+            return;
+        }
+
+        db.ref('chat').push({
+            sender: myNickname,
+            text: text,
+            type: "user"
+        });
+        input.value = "";
+    }
+
+    // 7. 생존자 목록 업데이트 (사이드바)
+    function listenPlayers() {
+        db.ref('users').on('value', (snapshot) => {
+            const players = snapshot.val();
+            const listEl = document.getElementById('player-list');
+            listEl.innerHTML = "";
+            
+            for (let id in players) {
+                const li = document.createElement('li');
+                let hostTag = players[id].isHost ? " (방장)" : "";
+                li.innerText = `${players[id].nickname}${hostTag}`;
+                listEl.appendChild(li);
+            }
+        });
+    }
+
+    // 사이드바 토글
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('sidebar-hidden');
+    }
+
+    // 게임 시작 전 인원 체크
+    function checkStartGame() {
+        db.ref('users').once('value', (snapshot) => {
+            const count = Object.keys(snapshot.val() || {}).length;
+            if (count < 3) {
+                db.ref('chat').push({
+                    sender: "시스템",
+                    text: "게임은 3명 이상 필요합니다.",
+                    type: "system"
+                });
+            } else {
+                // TODO: Part 3에서 게임 시작 로직 구현
+                db.ref('chat').push({ sender: "시스템", text: "게임을 시작합니다!", type: "system" });
+            }
+        });
+    }
+    // 1. 직업 데이터 정의 (21개 직업)
+const JOBS = {
+    1: { name: "시민", team: "citizen", ability: "none" },
+    2: { name: "경찰", team: "citizen", ability: "check" },
+    3: { name: "의사", team: "citizen", ability: "heal" },
+    4: { name: "감시자", team: "citizen", ability: "watch" },
+    5: { name: "미치광이 의사", team: "citizen", ability: "kill_heal" },
+    6: { name: "군인", team: "citizen", ability: "shield" },
+    7: { name: "연인", team: "citizen", ability: "love_chat" },
+    8: { name: "시장", team: "variable", ability: "triple_vote" }, // 시작 시 진영 랜덤
+    9: { name: "개표인", team: "variable", ability: "manipulate" }, // 시작 시 진영 랜덤
+    10: { name: "사제", team: "citizen", ability: "revive" },
+    11: { name: "기술자", team: "citizen", ability: "block" },
+    12: { name: "테러리스트", team: "citizen", ability: "boom" },
+    13: { name: "배신자", team: "variable", ability: "betray" }, // 마피아 1명 남을 시 전직
+    14: { name: "자경단", team: "citizen", ability: "kill_once" },
+    15: { name: "광대", team: "neutral", ability: "troll" },
+    16: { name: "감염자", team: "neutral", ability: "infect" },
+    17: { name: "식인종", team: "neutral", ability: "eat" },
+    18: { name: "암살자", team: "mafia", ability: "kill_stealth" },
+    19: { name: "변장술사", team: "mafia", ability: "disguise" },
+    20: { name: "마녀", team: "mafia", ability: "witch_kill" },
+    21: { name: "마피아", team: "mafia", ability: "kill" }
+};
+
+// 게임 상태 관리 변수
+let gameState = "waiting"; // waiting, night, morning, evening
+let myJob = null;
+let myTeam = "";
+let isDead = false;
+
+// 2. 게임 시작 로직 (방장 전용)
+function startGame() {
+    db.ref('users').once('value', (snapshot) => {
+        const users = snapshot.val();
+        const userIds = Object.keys(users);
+        const playerCount = userIds.length;
+
+        // 직업 섞기 및 배정 로직 (기본 설정: 마피아 1, 중립 1, 나머지 시민 기반)
+        // 실제 구현 시 '톱니바퀴 설정'값을 가져와야 하지만, 우선 기본 랜덤 배정
+        let selectedJobs = [21, 15]; // 기본 마피아, 광대 포함
+        while (selectedJobs.length < playerCount) {
+            selectedJobs.push(1); // 나머지는 시민으로 채움 (추후 설정 반영)
+        }
+        
+        // 직업 무작위 셔플
+        selectedJobs.sort(() => Math.random() - 0.5);
+
+        const updates = {};
+        userIds.forEach((id, index) => {
+            let jobId = selectedJobs[index];
+            let jobInfo = JOBS[jobId];
+            let team = jobInfo.team;
+
+            // 가변 진영(시장, 개표인 등) 랜덤 설정
+            if (team === "variable") {
+                team = Math.random() > 0.5 ? "citizen" : "mafia";
+            }
+
+            updates[`users/${id}/job`] = jobInfo.name;
+            updates[`users/${id}/jobId`] = jobId;
+            updates[`users/${id}/team`] = team;
+            updates[`users/${id}/status`] = "alive";
+        });
+
+        // 게임 상태 업데이트 및 채팅창 공지
+        updates['gameInfo/state'] = "night";
+        updates['gameInfo/day'] = 1;
+        updates['chat'] = null; // 기존 채팅 초기화 (선택 사항)
+
+        db.ref().update(updates);
+        sendSystemMessage("게임이 시작되었습니다. 첫 번째 밤이 찾아옵니다.");
+    });
+}
+
+// 3. 상태 리스너 (게임 단계 변화 감지)
+function listenGameState() {
+    db.ref('gameInfo/state').on('value', (snapshot) => {
+        gameState = snapshot.val();
+        if (!gameState) return;
+
+        // 내 직업 정보 동기화
+        db.ref(`users/${myId}`).once('value', (userSnap) => {
+            const userData = userSnap.val();
+            if (userData && userData.job) {
+                myJob = userData.job;
+                myTeam = userData.team;
+                isDead = userData.status === "dead";
+                
+                // 직업 확인 메시지 (개인용)
+                if (gameState === "night" && !isDead) {
+                    displayMessage("시스템", `당신의 직업은 [${myJob}] (진영: ${myTeam}) 입니다.`, "system");
+                }
+            }
+        });
+
+        handlePhaseChange(gameState);
+    });
+}
+
+// 4. 단계별 채팅 및 UI 제어
+function handlePhaseChange(state) {
+    const chatInput = document.getElementById('chat-input');
+    
+    if (state === "night") {
+        document.body.style.backgroundColor = "#050510"; // 밤 분위기
+        // 마피아나 연인만 채팅 가능하게 로직 추가
+        if (myTeam === "mafia" || myJob === "연인") {
+            chatInput.disabled = false;
+            chatInput.placeholder = "밤 비밀 채팅 가능...";
+        } else {
+            chatInput.disabled = true;
+            chatInput.placeholder = "밤에는 조용히 해야 합니다...";
+        }
+        startTimer(60); // 밤 시간 1분
+    } else {
+        document.body.style.backgroundColor = "#0c0c0c";
+        chatInput.disabled = false;
+        chatInput.placeholder = "메시지를 입력하세요...";
+    }
+}
+
+// 5. 타이머 기능
+function startTimer(seconds) {
+    let timeLeft = seconds;
+    const timerDisplay = document.getElementById('timer');
+    
+    const interval = setInterval(() => {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        timerDisplay.innerText = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            if (isHost && gameState === "night") {
+                // 밤이 끝나면 아침으로 전환 (방장이 제어)
+                db.ref('gameInfo/state').set("morning");
             }
         }
-    });
+        timeLeft--;
+    }, 1000);
+}
 
-    deadTonight.forEach(uid => { players[uid].isAlive = false; logs.push(`💀 ${uid}님이 사망했습니다.`); });
-    if (logs.length === 0) logs.push("☀️ 지난밤에는 아무 일도 없었습니다.");
-
-    const winner = checkVictory(players);
-    db.ref(`rooms/${roomID}`).update({
-        players: players, phase: "DAY", targetList: {}, day: gameState.day + 1, winner: winner || null
+// 시스템 메시지 전송 함수
+function sendSystemMessage(text) {
+    db.ref('chat').push({
+        sender: "시스템",
+        text: text,
+        type: "system"
     });
+}
+
+// 기존 Part 2의 enterRoom 함수 끝에 listenGameState(); 를 추가해야 합니다.
     
-    logs.forEach(l => db.ref(`rooms/${roomID}/chats`).push({ sender: "시스템", text: l }));
+// 1. 아침(Morning) 처리
+function processMorning() {
+    if (!isHost) return; // 방장만 계산을 수행해서 DB에 올림
+
+    db.ref('actions').once('value', (snapshot) => {
+        const actions = snapshot.val() || {};
+        const deadPlayers = []; // 이번 밤에 죽은 사람 목록
+
+        // [핵심 로직] 공격 우선순위 및 의사 치료 계산
+        // (Part 3에서 사용자들이 선택한 target 데이터를 actions에 저장했다는 가정)
+        
+        // 예시: 간단한 마피아 공격 로직
+        for (let actorId in actions) {
+            let action = actions[actorId];
+            if (action.type === "kill") {
+                // 의사의 치료(heal) 여부 확인 필요 (생략된 로직은 Part 5에서 상세화)
+                deadPlayers.push(action.target);
+            }
+        }
+
+        // DB 업데이트: 사망자 처리 및 상태 변경
+        const updates = {};
+        deadPlayers.forEach(pid => {
+            updates[`users/${pid}/status`] = "dead";
+        });
+        updates['gameInfo/state'] = "evening"; // 아침 발표 후 바로 투표/회의 단계로
+        updates['gameInfo/lastDead'] = deadPlayers;
+        updates['actions'] = null; // 액션 초기화
+
+        db.ref().update(updates);
+    });
 }
 
-function checkVictory(players) {
-    const alive = Object.values(players).filter(p => p.isAlive);
-    const mCount = alive.filter(p => p.team === "mafia").length;
-    const cCount = alive.filter(p => p.team === "citizen").length;
-    if (mCount === 0) return "CITIZEN";
-    if (mCount >= cCount) return "MAFIA";
-    return null;
+// 2. 투표 UI 생성 (저녁 단계)
+function showVoteUI() {
+    if (isDead) return;
+
+    db.ref('users').once('value', (snapshot) => {
+        const users = snapshot.val();
+        let voteHTML = '<div id="vote-panel" class="modal"><div class="modal-content"><h3>투표하세요</h3>';
+        
+        for (let id in users) {
+            if (users[id].status === "alive") {
+                voteHTML += `<button onclick="castVote('${id}')">${users[id].nickname}</button>`;
+            }
+        }
+        voteHTML += '<button onclick="castVote(\'skip\')">기권</button></div></div>';
+        document.body.insertAdjacentHTML('beforeend', voteHTML);
+    });
 }
 
-db.ref(`rooms/${roomID}/winner`).on('value', (snap) => {
-    if (snap.val()) alert(`${snap.val()} 승리!`);
-});
+// 3. 투표 실행
+function castVote(targetId) {
+    db.ref(`votes/${myId}`).set({
+        voter: myId,
+        target: targetId,
+        weight: (myJob === "시장") ? 3 : 1 // 시장은 3표
+    });
+    const panel = document.getElementById('vote-panel');
+    if (panel) panel.remove();
+    displayMessage("시스템", "투표를 완료했습니다.", "system");
+}
+
+// 4. 개표 및 결과 발표 (개표인 조작 포함)
+function processVoteResult() {
+    if (!isHost) return;
+
+    db.ref('votes').once('value', (snapshot) => {
+        const votes = snapshot.val() || {};
+        // 개표인이 있는지 확인
+        db.ref('users').orderByChild('job').equalTo('개표인').once('value', (userSnap) => {
+            const tallyMan = userSnap.val();
+            
+            if (tallyMan) {
+                // 개표인이 살아있다면 '개표 시작' 30초 부여
+                sendSystemMessage("개표인이 투표 결과를 조작 중입니다. (30초)");
+                setTimeout(() => finalizeVote(votes), 30000);
+            } else {
+                finalizeVote(votes);
+            }
+        });
+    });
+}
+
+function finalizeVote(votes) {
+    // 가장 표를 많이 받은 사람 선출 로직
+    // 결과에 따라 유저 status를 "dead"로 바꾸고 다시 밤(night)으로 전환
+    sendSystemMessage("투표 결과, 한 명이 처형되었습니다.");
+    db.ref('gameInfo/state').set("night");
+    db.ref('votes').remove();
+}
+
 </script>
+
 </body>
 </html>
-
-
-
-
-
-
