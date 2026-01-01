@@ -71,10 +71,7 @@ footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; 
 #player-list { list-style: none; overflow-y: auto; height: calc(100% - 120px); }
 #player-list li { padding: 10px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
 .sidebar-footer { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 20px; font-size: 1.5rem; color: #888; }
-<div class="sidebar-footer">
-    <i class="fas fa-cog" id="setup-btn" onclick="openSetup()" title="설정"></i>
-    <i class="fas fa-question-circle" id="help-btn" onclick="openHelp()" title="도움말"></i>
-</div>
+
 /* 도움말 모달 */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; }
 .modal-content { background: #222; padding: 20px; border-radius: 10px; width: 85%; max-height: 70%; overflow-y: auto; }
@@ -126,7 +123,7 @@ footer { height: 60px; background: #1a1a1a; display: flex; align-items: center; 
     <div id="login-gate" class="overlay">
         <div class="login-box">
             <h1>MAFIA</h1>
-            <input type="password" id="room-pw" placeholder="비밀번호 입력 (1024)">
+            <input type="password" id="room-pw" placeholder="비밀번호 입력">
             <input type="text" id="user-nickname" placeholder="닉네임 입력" maxlength="8">
             <button onclick="checkAccess()">입장하기</button>
         </div>
@@ -765,33 +762,11 @@ function startGameWithConfig() {
 // 4. 도움말 모달 제어
 document.getElementById('help-btn').onclick = () => document.getElementById('help-modal').classList.remove('hidden');
 document.querySelector('.close-modal').onclick = () => document.getElementById('help-modal').classList.add('hidden');
-// 설정창 열기
-function openSetup() {
-    console.log("설정창 열기 시도, 방장 여부:", isHost);
-    if (!isHost) {
-        alert("방장만 설정을 변경할 수 있습니다.");
-        return;
-    }
-    // 팝업 열기 전 직업 리스트 먼저 생성
-    renderJobChecklist();
-    document.getElementById('setup-modal').classList.remove('hidden');
-}
 
-// 도움말창 열기
-function openHelp() {
-    document.getElementById('help-modal').classList.remove('hidden');
-}
-
-// 팝업 닫기 (X 버튼용)
-function closeSetup() {
-    document.getElementById('setup-modal').classList.add('hidden');
-}
-function closeHelp() {
-    document.getElementById('help-modal').classList.add('hidden');
-}
 </script>
 </body>
 </html>
+
 
 
 
